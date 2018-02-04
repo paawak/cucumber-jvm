@@ -57,8 +57,8 @@ public class JRubyStepDefinition implements StepDefinition {
     }
 
     @Override
-    public IRubyObject execute(String language, Object[] args) throws Throwable {
-        return jRubyBackend.executeStepdef(stepdefRunner, language, args);
+    public void execute(String language, Object[] args) throws Throwable {
+        jRubyBackend.executeStepdef(stepdefRunner, language, args);
     }
 
     @Override

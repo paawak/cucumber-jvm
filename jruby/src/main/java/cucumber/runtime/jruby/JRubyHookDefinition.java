@@ -5,7 +5,6 @@ import cucumber.runtime.HookDefinition;
 import cucumber.runtime.TagPredicate;
 import gherkin.pickles.PickleTag;
 import org.jruby.RubyObject;
-import org.jruby.runtime.builtin.IRubyObject;
 
 import java.util.Collection;
 import java.util.List;
@@ -37,8 +36,8 @@ public class JRubyHookDefinition implements HookDefinition {
     }
 
     @Override
-    public IRubyObject execute(Scenario scenario) throws Throwable {
-        return jRubyBackend.executeHook(hookRunner, scenario);
+    public void execute(Scenario scenario) throws Throwable {
+        jRubyBackend.executeHook(hookRunner, scenario);
     }
 
     @Override
