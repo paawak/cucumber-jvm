@@ -4,18 +4,14 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 public class Result {
-    @SuppressWarnings("unused")
-	private static final long serialVersionUID = 2L;
+    private static final long serialVersionUID = 1L;
 
     private final Result.Type status;
     private final Long duration;
     private final Throwable error;
     private final List<String> snippets;
-    private final Object returnValue; 
-    
     public static final Result SKIPPED = new Result(Result.Type.SKIPPED, null, null);
     public static enum Type {
         PASSED,
@@ -38,7 +34,7 @@ public class Result {
 
 
     }
-    
+
     /**
      * Used at runtime
      *
@@ -47,8 +43,8 @@ public class Result {
      * @param error
      */
     public Result(Result.Type status, Long duration, Throwable error) {
-        this(status, duration, error, Collections.<String>emptyList(), null);
-    }    
+        this(status, duration, error, Collections.<String>emptyList());
+    }
 
     /**
      * Used at runtime
@@ -58,12 +54,11 @@ public class Result {
      * @param error
      * @param snippets
      */
-    public Result(Result.Type status, Long duration, Throwable error, List<String> snippets, Object returnValue) {
+    public Result(Result.Type status, Long duration, Throwable error, List<String> snippets) {
         this.status = status;
         this.duration = duration;
         this.error = error;
         this.snippets = snippets;
-        this.returnValue = returnValue;
     }
 
     public Result.Type getStatus() {
@@ -93,10 +88,6 @@ public class Result {
     public boolean isOk(boolean isStrict) {
         return hasAlwaysOkStatus() || !isStrict && hasOkWhenNotStrictStatus();
     }
-    
-    public Optional<Object> getReturnValue(){
-    	return Optional.ofNullable(returnValue);
-    }
 
     private boolean hasAlwaysOkStatus() {
         return is(Result.Type.PASSED) || is(Result.Type.SKIPPED);
@@ -112,5 +103,4 @@ public class Result {
         error.printStackTrace(printWriter);
         return stringWriter.getBuffer().toString();
     }
-    
 }

@@ -14,13 +14,13 @@ public class FailedStepInstantiationMatch extends StepDefinitionMatch {
     }
 
     @Override
-    public Object runStep(String language, Scenario scenario) throws Throwable {
+    public void runStep(String language, Scenario scenario) throws Throwable {
         throw throwable;
     }
 
     @Override
-    public Object dryRunStep(String language, Scenario scenario) throws Throwable {
-        return runStep(language, scenario);
+    public void dryRunStep(String language, Scenario scenario) throws Throwable {
+        runStep(language, scenario);
     }
 
     @Override

@@ -13,14 +13,13 @@ public class HookDefinitionMatch implements DefinitionMatch {
     }
 
     @Override
-    public Object runStep(String language, Scenario scenario) throws Throwable {
-        return hookDefinition.execute(scenario);
+    public void runStep(String language, Scenario scenario) throws Throwable {
+        hookDefinition.execute(scenario);
     }
 
     @Override
-    public Object dryRunStep(String language, Scenario scenario) throws Throwable {
+    public void dryRunStep(String language, Scenario scenario) throws Throwable {
         // Do nothing
-    	return null;
     }
 
     @Override

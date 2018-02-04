@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static java.util.Arrays.asList;
@@ -29,7 +28,7 @@ public class ScenarioImpl implements Scenario {
         this.tags = gherkinScenario.getTags();
         this.scenarioName = gherkinScenario.getName();
     }
-    
+
     public void add(Result result) {
         stepResults.add(result);
     }
@@ -89,12 +88,4 @@ public class ScenarioImpl implements Scenario {
         }
         return error;
     }
-
-	@Override
-	public Optional<Object> getResponseFromPreviousStep() {
-		if (stepResults.isEmpty()) {
-			return Optional.empty();
-		}
-		return stepResults.get(stepResults.size() - 1).getReturnValue();  
-	}
 }

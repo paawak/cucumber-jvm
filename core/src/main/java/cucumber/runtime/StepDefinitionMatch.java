@@ -1,7 +1,6 @@
 package cucumber.runtime;
 
 import cucumber.api.DataTable;
-import cucumber.api.PreviousStepState;
 import cucumber.api.Scenario;
 import cucumber.runtime.table.TableConverter;
 import cucumber.runtime.xstream.LocalizedXStreams;
@@ -16,7 +15,6 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 
 import static cucumber.util.FixJava.map;
 
@@ -37,10 +35,9 @@ public class StepDefinitionMatch extends Match implements DefinitionMatch {
     }
 
     @Override
-    public Object runStep(String language, Scenario scenario) throws Throwable {
+    public void runStep(String language, Scenario scenario) throws Throwable {
         try {
-        	Optional<Object> responseFromPreviousStep = scenario.getResponseFromPreviousStep();
-            return stepDefinition.execute(language, transformedArgs(step, localizedXStreams.get(localeFor(language)), new PreviousStepState(responseFromPreviousStep)));
+            stepDefinition.execute(language, transformedArgs(step, localizedXStreams.get(localeFor(language))));
         } catch (CucumberException e) {
             throw e;
         } catch (Throwable t) {
@@ -49,33 +46,24 @@ public class StepDefinitionMatch extends Match implements DefinitionMatch {
     }
 
     @Override
-    public Object dryRunStep(String language, Scenario scenario) throws Throwable {
+    public void dryRunStep(String language, Scenario scenario) throws Throwable {
         // Do nothing
-    	return null;
     }
 
     /**
      * @param step    the step to run
      * @param xStream used to convert a string to declared stepdef arguments
-     * @param previousStepState used to cpature the state of the previous step that was run
      * @return an Array matching the types or {@code parameterTypes}, or an array of String if {@code parameterTypes} is null
      */
-    private Object[] transformedArgs(PickleStep step, LocalizedXStreams.LocalizedXStream xStream, PreviousStepState previousStepState) {
+    private Object[] transformedArgs(PickleStep step, LocalizedXStreams.LocalizedXStream xStream) {
         int argumentCount = getArguments().size();
 
         if (!step.getArgument().isEmpty()) {
             argumentCount++;
         }
         Integer parameterCount = stepDefinition.getParameterCount();
-        boolean lastArgumentInstanceOfPreviousStepState = false;
-        
-        if ((parameterCount != null) && (argumentCount != parameterCount)) {
-        	if (parameterCount > 0) {
-        		lastArgumentInstanceOfPreviousStepState = stepDefinition.getParameterType(parameterCount - 1, PreviousStepState.class).getRawType().equals(PreviousStepState.class);
-        	}
-        	if (!lastArgumentInstanceOfPreviousStepState) {
-        		throw arityMismatch(parameterCount);
-        	}
+        if (parameterCount != null && argumentCount != parameterCount) {
+            throw arityMismatch(parameterCount);
         }
 
         List<Object> result = new ArrayList<Object>();
@@ -98,12 +86,6 @@ public class StepDefinitionMatch extends Match implements DefinitionMatch {
                 result.add(arg);
             }
         }
-        
-        if (lastArgumentInstanceOfPreviousStepState) {
-        	//TODO: add the previous state
-        	result.add(previousStepState);
-        }
-        
         return result.toArray(new Object[result.size()]);
     }
 

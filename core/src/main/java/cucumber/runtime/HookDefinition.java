@@ -14,7 +14,7 @@ public interface HookDefinition {
      */
     String getLocation(boolean detail);
 
-    Object execute(Scenario scenario) throws Throwable;
+    void execute(Scenario scenario) throws Throwable;
 
     boolean matches(Collection<PickleTag> tags);
 

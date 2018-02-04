@@ -133,7 +133,7 @@ public class StepdefGeneratorTest {
             }
 
             @Override
-            public Object execute(String language, Object[] args) throws Throwable {
+            public void execute(String language, Object[] args) throws Throwable {
                 throw new UnsupportedOperationException();
             }
 

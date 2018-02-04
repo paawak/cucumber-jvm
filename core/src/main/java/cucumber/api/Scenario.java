@@ -1,7 +1,6 @@
 package cucumber.api;
 
 import java.util.Collection;
-import java.util.Optional;
 
 /**
  * Before or After Hooks that declare a parameter of this type will receive an instance of this class.
@@ -52,6 +51,4 @@ public interface Scenario {
      * @return the name of the Scenario
      */
     String getName();
-    
-    Optional<Object> getResponseFromPreviousStep();
 }
