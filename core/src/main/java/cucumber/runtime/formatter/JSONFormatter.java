@@ -16,6 +16,7 @@ import cucumber.api.event.WriteEvent;
 import cucumber.api.formatter.Formatter;
 import cucumber.api.formatter.NiceAppendable;
 import gherkin.ast.Background;
+import gherkin.ast.DocString;
 import gherkin.ast.Feature;
 import gherkin.ast.ScenarioDefinition;
 import gherkin.ast.Step;
@@ -34,7 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class JSONFormatter implements Formatter {
+final class JSONFormatter implements Formatter {
     private String currentFeatureFile;
     private List<Map<String, Object>> featureMaps = new ArrayList<Map<String, Object>>();
     private List<Map<String, Object>> currentElementsList;
@@ -89,6 +90,7 @@ class JSONFormatter implements Formatter {
         }
     };
 
+    @SuppressWarnings("WeakerAccess") // Used by PluginFactory
     public JSONFormatter(Appendable out) {
         this.out = new NiceAppendable(out);
     }
@@ -105,12 +107,12 @@ class JSONFormatter implements Formatter {
     }
 
     private void handleTestSourceRead(TestSourceRead event) {
-        testSources.addSource(event.path, event.source);
+        testSources.addTestSourceReadEvent(event.uri, event);
     }
 
     private void handleTestCaseStarted(TestCaseStarted event) {
-        if (currentFeatureFile == null || !currentFeatureFile.equals(event.testCase.getPath())) {
-            currentFeatureFile = event.testCase.getPath();
+        if (currentFeatureFile == null || !currentFeatureFile.equals(event.testCase.getUri())) {
+            currentFeatureFile = event.testCase.getUri();
             Map<String, Object> currentFeatureMap = createFeatureMap(event.testCase);
             featureMaps.add(currentFeatureMap);
             currentElementsList = (List<Map<String, Object>>) currentFeatureMap.get("elements");
@@ -160,15 +162,17 @@ class JSONFormatter implements Formatter {
 
     private Map<String, Object> createFeatureMap(TestCase testCase) {
         Map<String, Object> featureMap = new HashMap<String, Object>();
-        featureMap.put("uri", testCase.getPath());
+        featureMap.put("uri", testCase.getUri());
         featureMap.put("elements", new ArrayList<Map<String, Object>>());
-        Feature feature = testSources.getFeature(testCase.getPath());
+        Feature feature = testSources.getFeature(testCase.getUri());
         if (feature != null) {
             featureMap.put("keyword", feature.getKeyword());
             featureMap.put("name", feature.getName());
             featureMap.put("description", feature.getDescription() != null ? feature.getDescription() : "");
             featureMap.put("line", feature.getLocation().getLine());
             featureMap.put("id", TestSourcesModel.convertToId(feature.getName()));
+            featureMap.put("tags", feature.getTags());
+
         }
         return featureMap;
     }
@@ -201,7 +205,7 @@ class JSONFormatter implements Formatter {
     private Map<String, Object> createBackground(TestCase testCase) {
         TestSourcesModel.AstNode astNode = testSources.getAstNode(currentFeatureFile, testCase.getLine());
         if (astNode != null) {
-            Background background = TestSourcesModel.getBackgoundForTestCase(astNode);
+            Background background = TestSourcesModel.getBackgroundForTestCase(astNode);
             Map<String, Object> testCaseMap = new HashMap<String, Object>();
             testCaseMap.put("name", background.getName());
             testCaseMap.put("line", background.getLocation().getLine());
@@ -228,15 +232,15 @@ class JSONFormatter implements Formatter {
         Map<String, Object> stepMap = new HashMap<String, Object>();
         stepMap.put("name", testStep.getStepText());
         stepMap.put("line", testStep.getStepLine());
+        TestSourcesModel.AstNode astNode = testSources.getAstNode(currentFeatureFile, testStep.getStepLine());
         if (!testStep.getStepArgument().isEmpty()) {
             Argument argument = testStep.getStepArgument().get(0);
             if (argument instanceof PickleString) {
-                stepMap.put("doc_string", createDocStringMap(argument));
+                stepMap.put("doc_string", createDocStringMap(argument, astNode));
             } else if (argument instanceof PickleTable) {
                 stepMap.put("rows", createDataTableList(argument));
             }
         }
-        TestSourcesModel.AstNode astNode = testSources.getAstNode(currentFeatureFile, testStep.getStepLine());
         if (astNode != null) {
             Step step = (Step) astNode.node;
             stepMap.put("keyword", step.getKeyword());
@@ -245,11 +249,14 @@ class JSONFormatter implements Formatter {
         return stepMap;
     }
 
-    private Map<String, Object> createDocStringMap(Argument argument) {
+    private Map<String, Object> createDocStringMap(Argument argument, TestSourcesModel.AstNode astNode) {
         Map<String, Object> docStringMap = new HashMap<String, Object>();
         PickleString docString = ((PickleString)argument);
         docStringMap.put("value", docString.getContent());
         docStringMap.put("line", docString.getLocation().getLine());
+        if (astNode != null) {
+            docStringMap.put("content_type", ((DocString)((Step)astNode.node).getArgument()).getContentType());
+        }
         return docStringMap;
     }
 
@@ -290,11 +297,11 @@ class JSONFormatter implements Formatter {
     }
 
     private void addEmbeddingToHookMap(byte[] data, String mimeType) {
-        if (!currentStepOrHookMap.containsKey("embedding")) {
-            currentStepOrHookMap.put("embedding", new ArrayList<Map<String, Object>>());
+        if (!currentStepOrHookMap.containsKey("embeddings")) {
+            currentStepOrHookMap.put("embeddings", new ArrayList<Map<String, Object>>());
         }
         Map<String, Object> embedMap = createEmbeddingMap(data, mimeType);
-        ((List<Map<String, Object>>)currentStepOrHookMap.get("embedding")).add(embedMap);
+        ((List<Map<String, Object>>)currentStepOrHookMap.get("embeddings")).add(embedMap);
     }
 
     private Map<String, Object> createEmbeddingMap(byte[] data, String mimeType) {

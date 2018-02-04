@@ -1,7 +1,7 @@
 package cucumber.runtime.formatter;
 
 import cucumber.api.Result;
-import cucumber.runner.TimeService;
+import cucumber.runner.TimeServiceStub;
 import cucumber.runtime.Backend;
 import cucumber.runtime.HookDefinition;
 import cucumber.runtime.Runtime;
@@ -91,7 +91,8 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
@@ -144,7 +145,8 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
@@ -198,7 +200,8 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
@@ -254,7 +257,8 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
@@ -381,9 +385,93 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
+        assertPrettyJsonEquals(expected, formatterOutput);
+    }
+
+    @Test
+    public void should_format_feature_and_scenario_with_tags() throws Throwable {
+        CucumberFeature feature = TestHelper.feature("path/test.feature", "" +
+            "@Party @Banana\n" +
+            "Feature: Banana party\n" +
+            "  @Monkey\n" +
+            "  Scenario: Monkey eats more bananas\n" +
+            "    Then the monkey eats more bananas\n");
+        Map<String, Result> stepsToResult = new HashMap<String, Result>();
+        stepsToResult.put("the monkey eats more bananas", result("passed"));
+        Map<String, String> stepsToLocation = new HashMap<String, String>();
+        stepsToLocation.put("the monkey eats more bananas", "StepDefs.monkey_eats_more_bananas()");
+        Long stepDuration = milliSeconds(1);
+
+        String formatterOutput = runFeatureWithJSONPrettyFormatter(feature, stepsToResult, stepsToLocation, stepDuration);
+
+        String expected = "" +
+            "[\n" +
+            "  {\n" +
+            "    \"line\": 2,\n" +
+            "    \"elements\": [\n" +
+            "      {\n" +
+            "        \"line\": 4,\n" +
+            "        \"name\": \"Monkey eats more bananas\",\n" +
+            "        \"description\": \"\",\n" +
+            "        \"id\": \"banana-party;monkey-eats-more-bananas\",\n" +
+            "        \"type\": \"scenario\",\n" +
+            "        \"keyword\": \"Scenario\",\n" +
+            "        \"steps\": [\n" +
+            "          {\n" +
+            "            \"result\": {\n" +
+            "              \"duration\": 1000000,\n" +
+            "              \"status\": \"passed\"\n" +
+            "            },\n" +
+            "            \"line\": 5,\n" +
+            "            \"name\": \"the monkey eats more bananas\",\n" +
+            "            \"match\": {\n" +
+            "              \"location\": \"StepDefs.monkey_eats_more_bananas()\"\n" +
+            "            },\n" +
+            "            \"keyword\": \"Then \"\n" +
+            "          }\n" +
+            "        ],\n" +
+            "        \"tags\": [\n" +
+            "          {\n" +
+            "            \"name\": \"@Party\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"@Banana\"\n" +
+            "          },\n" +
+            "          {\n" +
+            "            \"name\": \"@Monkey\"\n" +
+            "          }\n" +
+            "        ]\n" +
+            "      }\n" +
+            "    ],\n" +
+            "    \"name\": \"Banana party\",\n" +
+            "    \"description\": \"\",\n" +
+            "    \"id\": \"banana-party\",\n" +
+            "    \"keyword\": \"Feature\",\n" +
+            "    \"uri\": \"path/test.feature\",\n" +
+            "    \"tags\": [\n" +
+            "      {\n" +
+            "        \"name\": \"@Party\",\n" +
+            "        \"type\": \"Tag\",\n" +
+            "        \"location\": {\n" +
+            "          \"line\": 1,\n" +
+            "          \"column\": 1\n" +
+            "        }\n" +
+            "      },\n" +
+            "      {\n" +
+            "        \"name\": \"@Banana\",\n" +
+            "        \"type\": \"Tag\",\n" +
+            "        \"location\": {\n" +
+            "          \"line\": 1,\n" +
+            "          \"column\": 8\n" +
+            "        }\n" +
+            "      }\n" +
+            "    ]\n" +
+            "  }\n" +
+            "]";
         assertPrettyJsonEquals(expected, formatterOutput);
     }
 
@@ -462,14 +550,15 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
     }
 
     @Test
-    public void should_handle_write_from_a_hooks() throws Throwable {
+    public void should_handle_write_from_a_hook() throws Throwable {
         CucumberFeature feature = TestHelper.feature("path/test.feature", "" +
                 "Feature: Banana party\n" +
                 "\n" +
@@ -516,7 +605,7 @@ public class JSONFormatterTest {
                 "            ],\n" +
                 "            \"result\": {\n" +
                 "              \"status\": \"passed\",\n" +
-                "              \"duration\": 2000000\n" +
+                "              \"duration\": 1000000\n" +
                 "            }\n" +
                 "          }\n" +
                 "        ],\n" +
@@ -535,14 +624,15 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
     }
 
     @Test
-    public void should_handle_embed_from_a_hooks() throws Throwable {
+    public void should_handle_embed_from_a_hook() throws Throwable {
         CucumberFeature feature = TestHelper.feature("path/test.feature", "" +
                 "Feature: Banana party\n" +
                 "\n" +
@@ -584,7 +674,7 @@ public class JSONFormatterTest {
                 "            \"match\": {\n" +
                 "              \"location\": \"Hooks.before_hook_1()\"\n" +
                 "            },\n" +
-                "            \"embedding\": [\n" +
+                "            \"embeddings\": [\n" +
                 "              {\n" +
                 "                \"mime_type\": \"mime-type;base64\",\n" +
                 "                \"data\": \"AQID\"\n" +
@@ -592,7 +682,7 @@ public class JSONFormatterTest {
                 "            ],\n" +
                 "            \"result\": {\n" +
                 "              \"status\": \"passed\",\n" +
-                "              \"duration\": 2000000\n" +
+                "              \"duration\": 1000000\n" +
                 "            }\n" +
                 "          }\n" +
                 "        ],\n" +
@@ -611,7 +701,8 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
@@ -671,11 +762,75 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
     }
+
+    @Test
+    public void should_format_scenario_with_a_step_with_a_doc_string_and_content_type() throws Throwable {
+        CucumberFeature feature = TestHelper.feature("path/test.feature", "" +
+            "Feature: Banana party\n" +
+            "\n" +
+            "  Scenario: Monkey eats bananas\n" +
+            "    Given there are bananas\n" +
+            "    \"\"\"doc\n" +
+            "    doc string content\n" +
+            "    \"\"\"\n");
+        Map<String, Result> stepsToResult = new HashMap<String, Result>();
+        stepsToResult.put("there are bananas", result("passed"));
+        Map<String, String> stepsToLocation = new HashMap<String, String>();
+        stepsToLocation.put("there are bananas", "StepDefs.there_are_bananas()");
+        Long stepDuration = milliSeconds(1);
+
+        String formatterOutput = runFeatureWithJSONPrettyFormatter(feature, stepsToResult, stepsToLocation, stepDuration);
+
+        String expected = "" +
+                "[\n" +
+                "  {\n" +
+                "    \"id\": \"banana-party\",\n" +
+                "    \"uri\": \"path/test.feature\",\n" +
+                "    \"keyword\": \"Feature\",\n" +
+                "    \"name\": \"Banana party\",\n" +
+                "    \"line\": 1,\n" +
+                "    \"description\": \"\",\n" +
+                "    \"elements\": [\n" +
+                "      {\n" +
+                "        \"id\": \"banana-party;monkey-eats-bananas\",\n" +
+                "        \"keyword\": \"Scenario\",\n" +
+                "        \"name\": \"Monkey eats bananas\",\n" +
+                "        \"line\": 3,\n" +
+                "        \"description\": \"\",\n" +
+                "        \"type\": \"scenario\",\n" +
+                "        \"steps\": [\n" +
+                "          {\n" +
+                "            \"keyword\": \"Given \",\n" +
+                "            \"name\": \"there are bananas\",\n" +
+                "            \"line\": 4,\n" +
+                "            \"doc_string\": {\n" +
+                "              \"content_type\": \"doc\",\n" +
+                "              \"value\": \"doc string content\",\n" +
+                "              \"line\": 5\n" +
+                "            },\n" +
+                "            \"match\": {\n" +
+                "              \"location\": \"StepDefs.there_are_bananas()\"\n" +
+                "            },\n" +
+                "            \"result\": {\n" +
+                "              \"status\": \"passed\",\n" +
+                "              \"duration\": 1000000\n" +
+                "            }\n" +
+                "          }\n" +
+                "        ]\n" +
+                "      }\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
+                "  }\n" +
+                "]";
+        assertPrettyJsonEquals(expected, formatterOutput);
+    }
+
 
     @Test
     public void should_format_scenario_with_a_step_with_a_data_table() throws Throwable {
@@ -740,7 +895,8 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
@@ -800,7 +956,8 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  },\n" +
                 "  {\n" +
                 "    \"id\": \"orange-party\",\n" +
@@ -832,7 +989,8 @@ public class JSONFormatterTest {
                 "          }\n" +
                 "        ]\n" +
                 "      }\n" +
-                "    ]\n" +
+                "    ],\n" +
+                "    \"tags\": []\n" +
                 "  }\n" +
                 "]";
         assertPrettyJsonEquals(expected, formatterOutput);
@@ -874,7 +1032,7 @@ public class JSONFormatterTest {
         RuntimeOptions runtimeOptions = new RuntimeOptions(args);
         Backend backend = mock(Backend.class);
         when(backend.getSnippet(any(PickleStep.class), anyString(), any(FunctionNameGenerator.class))).thenReturn("TEST SNIPPET");
-        final Runtime runtime = new Runtime(resourceLoader, classLoader, asList(backend), runtimeOptions, new TimeService.Stub(1234), null);
+        final Runtime runtime = new Runtime(resourceLoader, classLoader, asList(backend), runtimeOptions, new TimeServiceStub(1234), null);
         runtime.getGlue().addBeforeHook(hook);
         runtime.run();
         Scanner scanner = new Scanner(new FileInputStream(report), "UTF-8");

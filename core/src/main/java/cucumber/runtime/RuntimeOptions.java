@@ -1,12 +1,15 @@
 package cucumber.runtime;
 
+import cucumber.api.Plugin;
 import cucumber.api.SnippetType;
 import cucumber.api.StepDefinitionReporter;
 import cucumber.api.SummaryPrinter;
+import cucumber.api.event.TestRunStarted;
 import cucumber.api.formatter.ColorAware;
 import cucumber.api.formatter.Formatter;
 import cucumber.api.formatter.StrictAware;
 import cucumber.runner.EventBus;
+import cucumber.deps.com.thoughtworks.xstream.annotations.XStreamConverter;
 import cucumber.runtime.formatter.PluginFactory;
 import cucumber.runtime.io.ResourceLoader;
 import cucumber.runtime.model.CucumberFeature;
@@ -34,6 +37,7 @@ import static cucumber.runtime.model.CucumberFeature.load;
 import static cucumber.util.FixJava.join;
 import static cucumber.util.FixJava.map;
 import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableList;
 
 // IMPORTANT! Make sure USAGE.txt is always uptodate if this class changes.
 public class RuntimeOptions {
@@ -65,7 +69,8 @@ public class RuntimeOptions {
     private final List<String> pluginSummaryPrinterNames = new ArrayList<String>();
     private final List<String> junitOptions = new ArrayList<String>();
     private final PluginFactory pluginFactory;
-    private final List<Object> plugins = new ArrayList<Object>();
+    private final List<Plugin> plugins = new ArrayList<Plugin>();
+    private final List<XStreamConverter> converters = new ArrayList<XStreamConverter>();
     private boolean dryRun;
     private boolean strict = false;
     private boolean monochrome = false;
@@ -211,6 +216,11 @@ public class RuntimeOptions {
         parsedPluginData.updatePluginSummaryPrinterNames(pluginSummaryPrinterNames);
     }
 
+    RuntimeOptions withConverters(List<XStreamConverter> converters) {
+        this.converters.addAll(converters);
+        return this;
+    }
+
     private void addLineFilters(Map<String, List<Long>> parsedLineFilters, String key, List<Long> lines) {
         if (parsedLineFilters.containsKey(key)) {
             parsedLineFilters.get(key).addAll(lines);
@@ -300,32 +310,37 @@ public class RuntimeOptions {
     public List<CucumberFeature> cucumberFeatures(ResourceLoader resourceLoader, EventBus bus) {
         List<CucumberFeature> features = load(resourceLoader, featurePaths, System.out);
         getPlugins(); // to create the formatter objects
+        bus.send(new TestRunStarted(bus.getTime()));
         for (CucumberFeature feature : features) {
             feature.sendTestSourceRead(bus);
         }
         return features;
     }
 
-    public List<Object> getPlugins() {
+    public List<Plugin> getPlugins() {
         if (!pluginNamesInstantiated) {
             for (String pluginName : pluginFormatterNames) {
-                Object plugin = pluginFactory.create(pluginName);
+                Plugin plugin = pluginFactory.create(pluginName);
                 plugins.add(plugin);
                 setMonochromeOnColorAwarePlugins(plugin);
                 setStrictOnStrictAwarePlugins(plugin);
                 setEventBusFormatterPlugins(plugin);
             }
             for (String pluginName : pluginStepDefinitionReporterNames) {
-                Object plugin = pluginFactory.create(pluginName);
+                Plugin plugin = pluginFactory.create(pluginName);
                 plugins.add(plugin);
             }
             for (String pluginName : pluginSummaryPrinterNames) {
-                Object plugin = pluginFactory.create(pluginName);
+                Plugin plugin = pluginFactory.create(pluginName);
                 plugins.add(plugin);
             }
             pluginNamesInstantiated = true;
         }
         return plugins;
+    }
+
+    List<XStreamConverter> getConverters() {
+        return unmodifiableList(converters);
     }
 
     public Formatter formatter(ClassLoader classLoader) {
@@ -348,7 +363,7 @@ public class RuntimeOptions {
      * @param <T>         generic proxy type
      * @return a proxy
      */
-    public <T> T pluginProxy(ClassLoader classLoader, final Class<T> type) {
+    private <T> T pluginProxy(ClassLoader classLoader, final Class<T> type) {
         Object proxy = Proxy.newProxyInstance(classLoader, new Class<?>[]{type}, new InvocationHandler() {
             @Override
             public Object invoke(Object target, Method method, Object[] args) throws Throwable {
@@ -407,11 +422,9 @@ public class RuntimeOptions {
         return featurePaths;
     }
 
-    public void addPlugin(Object plugin) {
+    public void addPlugin(Formatter plugin) {
         plugins.add(plugin);
-        if (plugin instanceof Formatter) {
-            setEventBusFormatterPlugins(plugin);
-        }
+        setEventBusFormatterPlugins(plugin);
     }
 
     public List<Pattern> getNameFilters() {
@@ -430,8 +443,7 @@ public class RuntimeOptions {
     private void processRerunFiles(ResourceLoader resourceLoader) {
         for (String featurePath : featurePaths) {
             if (featurePath.startsWith("@")) {
-                for (String path : CucumberFeature.loadRerunFile(resourceLoader, featurePath.substring(1))) {
-                    PathWithLines pathWithLines = new PathWithLines(path);
+                for (PathWithLines pathWithLines : CucumberFeature.loadRerunFile(resourceLoader, featurePath.substring(1))) {
                     addLineFilters(lineFilters, pathWithLines.path, pathWithLines.lines);
                 }
             }
@@ -458,7 +470,7 @@ public class RuntimeOptions {
         public void addPluginName(String name, boolean isAddPlugin) {
             if (PluginFactory.isFormatterName(name)) {
                 formatterNames.addName(name, isAddPlugin);
-            } else if (PluginFactory.isStepDefinitionResporterName(name)) {
+            } else if (PluginFactory.isStepDefinitionReporterName(name)) {
                 stepDefinitionReporterNames.addName(name, isAddPlugin);
             } else if (PluginFactory.isSummaryPrinterName(name)) {
                 summaryPrinterNames.addName(name, isAddPlugin);

@@ -28,7 +28,7 @@ import gherkin.pickles.PickleTag;
 
 import java.util.List;
 
-class PrettyFormatter implements Formatter, ColorAware {
+final class PrettyFormatter implements Formatter, ColorAware {
     private static final String SCENARIO_INDENT = "  ";
     private static final String STEP_INDENT = "    ";
     private static final String EXAMPLES_INDENT = "    ";
@@ -90,6 +90,7 @@ class PrettyFormatter implements Formatter, ColorAware {
         }
     };
 
+    @SuppressWarnings("WeakerAccess") // Used by PluginFactory
     public PrettyFormatter(Appendable out) {
         this.out = new NiceAppendable(out);
         this.formats = new AnsiFormats();
@@ -115,7 +116,7 @@ class PrettyFormatter implements Formatter, ColorAware {
     }
 
     private void handleTestSourceRead(TestSourceRead event) {
-        testSources.addSource(event.path, event.source);
+        testSources.addTestSourceReadEvent(event.uri, event);
     }
 
     private void handleTestCaseStarted(TestCaseStarted event) {
@@ -155,11 +156,11 @@ class PrettyFormatter implements Formatter, ColorAware {
     }
 
     private void handleStartOfFeature(TestCaseStarted event) {
-        if (currentFeatureFile == null || !currentFeatureFile.equals(event.testCase.getPath())) {
+        if (currentFeatureFile == null || !currentFeatureFile.equals(event.testCase.getUri())) {
             if (currentFeatureFile != null) {
                 out.println();
             }
-            currentFeatureFile = event.testCase.getPath();
+            currentFeatureFile = event.testCase.getUri();
             printFeature(currentFeatureFile);
         }
     }
@@ -208,22 +209,28 @@ class PrettyFormatter implements Formatter, ColorAware {
     }
 
     String formatStepText(String keyword, String stepText, Format textFormat, Format argFormat, List<Argument> arguments) {
-        int textStart = 0;
+        int beginIndex = 0;
         StringBuilder result = new StringBuilder(textFormat.text(keyword));
         for (Argument argument : arguments) {
             // can be null if the argument is missing.
             if (argument.getOffset() != null) {
-                String text = stepText.substring(textStart, argument.getOffset());
+                int argumentOffset = argument.getOffset();
+                // a nested argument starts before the enclosing argument ends; ignore it when formatting
+                if (argumentOffset < beginIndex ) {
+                    continue;
+                }
+                String text = stepText.substring(beginIndex, argumentOffset);
                 result.append(textFormat.text(text));
             }
             // val can be null if the argument isn't there, for example @And("(it )?has something")
             if (argument.getVal() != null) {
                 result.append(argFormat.text(argument.getVal()));
-                textStart = argument.getOffset() + argument.getVal().length();
+                // set beginIndex to end of argument
+                beginIndex = argument.getOffset() + argument.getVal().length();
             }
         }
-        if (textStart != stepText.length()) {
-            String text = stepText.substring(textStart, stepText.length());
+        if (beginIndex != stepText.length()) {
+            String text = stepText.substring(beginIndex, stepText.length());
             result.append(textFormat.text(text));
         }
         return result.toString();
@@ -299,7 +306,7 @@ class PrettyFormatter implements Formatter, ColorAware {
     private void printBackground(TestCase testCase) {
         TestSourcesModel.AstNode astNode = testSources.getAstNode(currentFeatureFile, testCase.getLine());
         if (astNode != null) {
-            Background background = TestSourcesModel.getBackgoundForTestCase(astNode);
+            Background background = TestSourcesModel.getBackgroundForTestCase(astNode);
             String backgroundText = getScenarioDefinitionText(background);
             boolean useBackgroundSteps = true;
             calculateLocationIndentation(SCENARIO_INDENT + backgroundText, testCase.getTestSteps(), useBackgroundSteps);

@@ -2,7 +2,7 @@ package cucumber.runtime;
 
 import cucumber.api.DataTable;
 import cucumber.api.Scenario;
-import cucumber.runtime.table.TableConverter;
+import cucumber.api.TableConverter;
 import cucumber.runtime.xstream.LocalizedXStreams;
 import cucumber.util.Mapper;
 import gherkin.pickles.PickleCell;
@@ -100,7 +100,7 @@ public class StepDefinitionMatch extends Match implements DefinitionMatch {
 
     private Object tableArgument(PickleTable stepArgument, int argIndex, LocalizedXStreams.LocalizedXStream xStream) {
         ParameterInfo parameterInfo = getParameterType(argIndex, DataTable.class);
-        TableConverter tableConverter = new TableConverter(xStream, parameterInfo);
+        TableConverter tableConverter = new cucumber.runtime.table.TableConverter(xStream, parameterInfo);
         DataTable table = new DataTable(stepArgument, tableConverter);
         Type type = parameterInfo.getType();
         return tableConverter.convert(table, type, parameterInfo.isTransposed());
@@ -183,14 +183,13 @@ public class StepDefinitionMatch extends Match implements DefinitionMatch {
         return this;
     }
 
-    @Override
-    public String getCodeLocation() {
-        return stepDefinition.getLocation(false);
+    StepDefinition getStepDefinition() {
+        return stepDefinition;
     }
 
     @Override
-    public List<String> getSnippets() {
-        throw new UnsupportedOperationException();
+    public String getCodeLocation() {
+        return stepDefinition.getLocation(false);
     }
 
     public static int getStepLine(PickleStep step) {

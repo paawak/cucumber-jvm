@@ -19,7 +19,7 @@ import java.util.Set;
  * Formatter for reporting all failed test cases and print their locations
  * Failed means: results that make the exit code non-zero.
  */
-class RerunFormatter implements Formatter, StrictAware {
+final class RerunFormatter implements Formatter, StrictAware {
     private final NiceAppendable out;
     private Map<String, ArrayList<Integer>> featureAndFailedLinesMapping = new HashMap<String, ArrayList<Integer>>();
     private boolean isStrict = false;
@@ -37,6 +37,7 @@ class RerunFormatter implements Formatter, StrictAware {
         }
     };
 
+    @SuppressWarnings("WeakerAccess") // Used by PluginFactory
     public RerunFormatter(Appendable out) {
         this.out = new NiceAppendable(out);
     }
@@ -64,7 +65,7 @@ class RerunFormatter implements Formatter, StrictAware {
     }
 
     private void recordTestFailed(TestCase testCase) {
-        String path = testCase.getPath();
+        String path = testCase.getUri();
         ArrayList<Integer> failedTestCases = this.featureAndFailedLinesMapping.get(path);
         if (failedTestCases == null) {
             failedTestCases = new ArrayList<Integer>();
@@ -76,17 +77,13 @@ class RerunFormatter implements Formatter, StrictAware {
 
     private void reportFailedTestCases() {
         Set<Map.Entry<String, ArrayList<Integer>>> entries = featureAndFailedLinesMapping.entrySet();
-        boolean firstFeature = true;
         for (Map.Entry<String, ArrayList<Integer>> entry : entries) {
             if (!entry.getValue().isEmpty()) {
-                if (!firstFeature) {
-                    out.append(" ");
-                }
                 out.append(entry.getKey());
-                firstFeature = false;
                 for (Integer line : entry.getValue()) {
                     out.append(":").append(line.toString());
                 }
+                out.println();
             }
         }
     }

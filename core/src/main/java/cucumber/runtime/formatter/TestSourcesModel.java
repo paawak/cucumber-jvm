@@ -1,6 +1,9 @@
 package cucumber.runtime.formatter;
 
+import cucumber.api.event.TestSourceRead;
 import gherkin.AstBuilder;
+import gherkin.GherkinDialect;
+import gherkin.GherkinDialectProvider;
 import gherkin.Parser;
 import gherkin.ParserException;
 import gherkin.TokenMatcher;
@@ -17,19 +20,19 @@ import gherkin.ast.TableRow;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TestSourcesModel {
-    private final Map<String, String> pathToSourceMap = new HashMap<String, String>();
+final class TestSourcesModel {
+    private final Map<String, TestSourceRead> pathToReadEventMap = new HashMap<String, TestSourceRead>();
     private final Map<String, GherkinDocument> pathToAstMap = new HashMap<String, GherkinDocument>();
     private final Map<String, Map<Integer, AstNode>> pathToNodeMap = new HashMap<String, Map<Integer, AstNode>>();
 
-    public static Feature getFeatureForTestCase(AstNode astNode) {
+    static Feature getFeatureForTestCase(AstNode astNode) {
         while (astNode.parent != null) {
             astNode = astNode.parent;
         }
-        return (Feature)astNode.node;
+        return (Feature) astNode.node;
     }
 
-    public static Background getBackgoundForTestCase(AstNode astNode) {
+    static Background getBackgroundForTestCase(AstNode astNode) {
         Feature feature = getFeatureForTestCase(astNode);
         ScenarioDefinition backgound = feature.getChildren().get(0);
         if (backgound instanceof Background) {
@@ -39,47 +42,47 @@ public class TestSourcesModel {
         }
     }
 
-    public static ScenarioDefinition getScenarioDefinition(AstNode astNode) {
-        return astNode.node instanceof ScenarioDefinition ? (ScenarioDefinition)astNode.node : (ScenarioDefinition)astNode.parent.parent.node;
+    static ScenarioDefinition getScenarioDefinition(AstNode astNode) {
+        return astNode.node instanceof ScenarioDefinition ? (ScenarioDefinition) astNode.node : (ScenarioDefinition) astNode.parent.parent.node;
     }
 
-    public static boolean isScenarioOutlineScenario(AstNode astNode) {
+    static boolean isScenarioOutlineScenario(AstNode astNode) {
         return !(astNode.node instanceof ScenarioDefinition);
     }
 
-    public static boolean isBackgroundStep(AstNode astNode) {
+    static boolean isBackgroundStep(AstNode astNode) {
         return astNode.parent.node instanceof Background;
     }
 
-    public static String calculateId(AstNode astNode) {
+    static String calculateId(AstNode astNode) {
         Node node = astNode.node;
         if (node instanceof ScenarioDefinition) {
-            return calculateId(astNode.parent) + ";" + convertToId(((ScenarioDefinition)node).getName());
+            return calculateId(astNode.parent) + ";" + convertToId(((ScenarioDefinition) node).getName());
         }
         if (node instanceof ExamplesRowWrapperNode) {
-            return calculateId(astNode.parent) + ";" + Integer.toString(((ExamplesRowWrapperNode)node).bodyRowIndex + 2);
+            return calculateId(astNode.parent) + ";" + Integer.toString(((ExamplesRowWrapperNode) node).bodyRowIndex + 2);
         }
         if (node instanceof TableRow) {
             return calculateId(astNode.parent) + ";" + Integer.toString(1);
         }
         if (node instanceof Examples) {
-            return calculateId(astNode.parent) + ";" + convertToId(((Examples)node).getName());
+            return calculateId(astNode.parent) + ";" + convertToId(((Examples) node).getName());
         }
         if (node instanceof Feature) {
-            return convertToId(((Feature)node).getName());
+            return convertToId(((Feature) node).getName());
         }
         return "";
     }
 
-    public static String convertToId(String name) {
+    static String convertToId(String name) {
         return name.replaceAll("[\\s'_,!]", "-").toLowerCase();
     }
 
-    public void addSource(String path, String source) {
-        pathToSourceMap.put(path, source);
+    void addTestSourceReadEvent(String path, TestSourceRead event) {
+        pathToReadEventMap.put(path, event);
     }
 
-    public Feature getFeature(String path) {
+    Feature getFeature(String path) {
         if (!pathToAstMap.containsKey(path)) {
             parseGherkinSource(path);
         }
@@ -89,11 +92,11 @@ public class TestSourcesModel {
         return null;
     }
 
-    public ScenarioDefinition getScenarioDefinition(String path, int line) {
+    ScenarioDefinition getScenarioDefinition(String path, int line) {
         return getScenarioDefinition(getAstNode(path, line));
     }
 
-    public AstNode getAstNode(String path, int line) {
+    AstNode getAstNode(String path, int line) {
         if (!pathToNodeMap.containsKey(path)) {
             parseGherkinSource(path);
         }
@@ -103,25 +106,55 @@ public class TestSourcesModel {
         return null;
     }
 
-    public boolean hasBackground(String path, int line) {
+    boolean hasBackground(String path, int line) {
         if (!pathToNodeMap.containsKey(path)) {
             parseGherkinSource(path);
         }
         if (pathToNodeMap.containsKey(path)) {
             AstNode astNode = pathToNodeMap.get(path).get(line);
-            return getBackgoundForTestCase(astNode) != null;
+            return getBackgroundForTestCase(astNode) != null;
         }
         return false;
     }
 
+    String getKeywordFromSource(String uri, int stepLine) {
+        Feature feature = getFeature(uri);
+        if (feature != null) {
+            TestSourceRead event = getTestSourceReadEvent(uri);
+            String trimmedSourceLine = event.source.split("\n")[stepLine - 1].trim();
+            GherkinDialect dialect = new GherkinDialectProvider(feature.getLanguage()).getDefaultDialect();
+            for (String keyword : dialect.getStepKeywords()) {
+                if (trimmedSourceLine.startsWith(keyword)) {
+                    return keyword;
+                }
+            }
+        }
+        return "";
+    }
+
+    private TestSourceRead getTestSourceReadEvent(String uri) {
+        if (pathToReadEventMap.containsKey(uri)) {
+            return pathToReadEventMap.get(uri);
+        }
+        return null;
+    }
+
+    String getFeatureName(String uri) {
+        Feature feature = getFeature(uri);
+        if (feature != null) {
+            return feature.getName();
+        }
+        return "";
+    }
+
     private void parseGherkinSource(String path) {
-        if (!pathToSourceMap.containsKey(path)) {
+        if (!pathToReadEventMap.containsKey(path)) {
             return;
         }
         Parser<GherkinDocument> parser = new Parser<GherkinDocument>(new AstBuilder());
         TokenMatcher matcher = new TokenMatcher();
         try {
-            GherkinDocument gherkinDocument = parser.parse(pathToSourceMap.get(path), matcher);
+            GherkinDocument gherkinDocument = parser.parse(pathToReadEventMap.get(path).source, matcher);
             pathToAstMap.put(path, gherkinDocument);
             Map<Integer, AstNode> nodeMap = new HashMap<Integer, AstNode>();
             AstNode currentParent = new AstNode(gherkinDocument.getFeature(), null);
@@ -141,7 +174,7 @@ public class TestSourcesModel {
             nodeMap.put(step.getLocation().getLine(), new AstNode(step, childNode));
         }
         if (child instanceof ScenarioOutline) {
-            processScenarioOutlineExamples(nodeMap, (ScenarioOutline)child, childNode);
+            processScenarioOutlineExamples(nodeMap, (ScenarioOutline) child, childNode);
         }
     }
 
@@ -161,19 +194,19 @@ public class TestSourcesModel {
     }
 
     class ExamplesRowWrapperNode extends Node {
-        public final int bodyRowIndex;
+        final int bodyRowIndex;
 
-        protected ExamplesRowWrapperNode(Node examplesRow, int bodyRowIndex) {
+        ExamplesRowWrapperNode(Node examplesRow, int bodyRowIndex) {
             super(examplesRow.getLocation());
             this.bodyRowIndex = bodyRowIndex;
         }
     }
 
     class AstNode {
-        public final Node node;
-        public final AstNode parent;
+        final Node node;
+        final AstNode parent;
 
-        public AstNode(Node node, AstNode parent) {
+        AstNode(Node node, AstNode parent) {
             this.node = node;
             this.parent = parent;
         }

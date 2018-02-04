@@ -9,6 +9,7 @@ import cucumber.api.event.TestCaseStarted;
 import cucumber.runner.EventBus;
 import gherkin.events.PickleEvent;
 import gherkin.pickles.Pickle;
+import gherkin.pickles.PickleLocation;
 import org.junit.Test;
 import org.mockito.InOrder;
 
@@ -31,7 +32,7 @@ public class TestCaseTest {
         TestStep testStep = mock(TestStep.class);
         when(testStep.run(eq(bus), eq(language), isA(Scenario.class), anyBoolean())).thenReturn(resultWithStatus(Result.Type.UNDEFINED));
 
-        TestCase testCase = new TestCase(Arrays.asList(testStep), pickleEvent());
+        TestCase testCase = new TestCase(Arrays.asList(testStep), pickleEvent(), false);
         testCase.run(bus);
 
         InOrder order = inOrder(bus, testStep);
@@ -49,7 +50,7 @@ public class TestCaseTest {
         TestStep testStep2 = mock(TestStep.class);
         when(testStep2.run(eq(bus), eq(language), isA(Scenario.class), anyBoolean())).thenReturn(resultWithStatus(Result.Type.PASSED));
 
-        TestCase testCase = new TestCase(Arrays.asList(testStep1, testStep2), pickleEvent());
+        TestCase testCase = new TestCase(Arrays.asList(testStep1, testStep2), pickleEvent(), false);
         testCase.run(bus);
 
         InOrder order = inOrder(testStep1, testStep2);
@@ -66,7 +67,7 @@ public class TestCaseTest {
         TestStep testStep2 = mock(TestStep.class);
         when(testStep2.run(eq(bus), eq(language), isA(Scenario.class), anyBoolean())).thenReturn(resultWithStatus(Result.Type.SKIPPED));
 
-        TestCase testCase = new TestCase(Arrays.asList(testStep1, testStep2), pickleEvent());
+        TestCase testCase = new TestCase(Arrays.asList(testStep1, testStep2), pickleEvent(), false);
         testCase.run(bus);
 
         InOrder order = inOrder(testStep1, testStep2);
@@ -77,6 +78,7 @@ public class TestCaseTest {
     private PickleEvent pickleEvent() {
         Pickle pickle = mock(Pickle.class);
         when(pickle.getLanguage()).thenReturn(ENGLISH);
+        when(pickle.getLocations()).thenReturn(Arrays.asList(new PickleLocation(1, 1)));
         return new PickleEvent("uri", pickle);
     }
 

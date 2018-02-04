@@ -12,8 +12,8 @@ public class JUnitOptions {
     private static final String OPTIONS_RESOURCE = "/cucumber/api/junit/OPTIONS.txt";
     private static String optionsText;
 
-    private boolean allowStartedIgnored = false;
     private boolean filenameCompatibleNames = false;
+    private boolean stepNotifications = false;
 
     /**
      * Create a new instance from a list of options, for example:
@@ -35,20 +35,25 @@ public class JUnitOptions {
                 printOptions();
                 System.exit(0);
             } else if (arg.equals("--no-allow-started-ignored") || arg.equals("--allow-started-ignored")) {
-                allowStartedIgnored = !arg.startsWith("--no-");
+                System.err.println("WARNING: Found tags option '" + arg + "'. " +
+                        "--allow-started-ignored has no effect, testStarted is always fired before a test is started." +
+                        "--allow-started-ignored will be removed from the next release of Cucumber-JVM");
             } else if (arg.equals("--no-filename-compatible-names") || arg.equals("--filename-compatible-names")) {
                 filenameCompatibleNames = !arg.startsWith("--no-");
-            } else {
+            } else if (arg.equals("--no-step-notifications") || arg.equals("--step-notifications")) {
+                stepNotifications = !arg.startsWith("--no-");
+            } else{
+                printOptions();
                 throw new CucumberException("Unknown option: " + arg);
             }
         }
     }
 
-    boolean allowStartedIgnored() {
-        return allowStartedIgnored;
-    }
     boolean filenameCompatibleNames() {
         return filenameCompatibleNames;
+    }
+    public boolean stepNotifications(){
+        return stepNotifications;
     }
 
     private void printOptions() {
